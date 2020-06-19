@@ -26,7 +26,8 @@ export class FrontendGenerator extends AbstractGenerator {
         await this.write(this.pck.frontend('index.html'), this.compileIndexHtml(frontendModules));
         await this.write(this.pck.frontend('index.js'), this.compileIndexJs(frontendModules));
         if (this.pck.isElectron()) {
-            await this.write(this.pck.frontend('electron-main.js'), this.compileElectronMain());
+            const electronMainModules = this.pck.targetElectronMainModules;
+            await this.write(this.pck.frontend('electron-main.js'), this.compileElectronMain(electronMainModules));
         }
     }
 

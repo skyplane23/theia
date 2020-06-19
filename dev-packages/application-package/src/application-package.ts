@@ -246,6 +246,10 @@ export class ApplicationPackage {
         return this.ifBrowser(this.frontendModules, this.frontendElectronModules);
     }
 
+    get targetElectronMainModules(): Map<string, string> {
+        return this.ifElectron(this.electronMainModules, new Map());
+    }
+
     setDependency(name: string, version: string | undefined): boolean {
         const dependencies = this.pck.dependencies || {};
         const currentVersion = dependencies[name];
