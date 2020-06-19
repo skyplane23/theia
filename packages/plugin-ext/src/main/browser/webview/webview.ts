@@ -365,7 +365,7 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget {
     }
 
     protected preprocessHtml(value: string): string {
-        // replace <head><meta http-equiv="Content-Security-Policy" /></head>
+        // Comment <meta http-equiv="Content-Security-Policy" /> tag in HEAD section
         let html = value
             .replace(/<\s*meta([^>]+?(?=Content-Security-Policy)[^>]+)\/?>/gsm, (_, group) => {
                 return `<!-- meta ${group} -->`;
