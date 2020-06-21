@@ -18,12 +18,19 @@ import { ContainerModule } from 'inversify';
 import { ElectronIpcConnectionProvider } from '@theia/electron/lib/electron-browser/messaging/electron-ipc-connection-provider';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
-import { SampleUpdater, SampleUpdaterPath } from '../../common/updater/sample-updater';
-import { SampleUpdaterFrontendContribution } from './sample-updater-frontend-contribution';
+import { SampleUpdater, SampleUpdaterPath, SampleUpdaterClient } from '../../common/updater/sample-updater';
+import { SampleUpdaterFrontendContribution, ElectronMenuUpdater, SampleUpdaterClientImpl } from './sample-updater-frontend-contribution';
 
 export default new ContainerModule(bind => {
-    bind(SampleUpdater).toDynamicValue(context => ElectronIpcConnectionProvider.createProxy(context.container, SampleUpdaterPath));
-    bind(MenuContribution).to(SampleUpdaterFrontendContribution).inSingletonScope();
-    bind(CommandContribution).to(SampleUpdaterFrontendContribution).inSingletonScope();
-    bind(FrontendApplicationContribution).to(SampleUpdaterFrontendContribution).inSingletonScope();
+    bind(ElectronMenuUpdater).toSelf().inSingletonScope();
+    bind(SampleUpdaterClientImpl).toSelf().inSingletonScope();
+    bind(SampleUpdaterClient).toService(SampleUpdaterClientImpl);
+    bind(SampleUpdater).toDynamicValue(context => {
+        const client = context.container.get(SampleUpdaterClientImpl);
+        return ElectronIpcConnectionProvider.createProxy(context.container, SampleUpdaterPath, client);
+    }).inSingletonScope();
+    bind(SampleUpdaterFrontendContribution).toSelf().inSingletonScope();
+    bind(MenuContribution).toService(SampleUpdaterFrontendContribution);
+    bind(CommandContribution).toService(SampleUpdaterFrontendContribution);
+    bind(FrontendApplicationContribution).toService(SampleUpdaterFrontendContribution);
 });

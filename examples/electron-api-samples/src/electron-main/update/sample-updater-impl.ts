@@ -47,7 +47,10 @@ export class SampleUpdaterImpl implements SampleUpdater, ElectronMainContributio
         } else {
             this.inProgressTimer = setTimeout(() => {
                 this.inProgressTimer = undefined;
-                this.available = true
+                this.available = true;
+                for (const client of this.clients) {
+                    client.notifyReadyToInstall();
+                }
             }, 5000);
         }
     }

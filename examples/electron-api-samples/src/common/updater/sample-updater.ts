@@ -21,7 +21,7 @@ export enum UpdateStatus {
     NotAvailable = 'not-available'
 }
 
-export const SampleUpdaterPath = '/services/sample-updater'
+export const SampleUpdaterPath = '/services/sample-updater';
 export const SampleUpdater = Symbol('SampleUpdater');
 export interface SampleUpdater extends JsonRpcServer<SampleUpdaterClient> {
     checkForUpdates(): Promise<{ status: UpdateStatus }>;
@@ -33,5 +33,5 @@ export interface SampleUpdater extends JsonRpcServer<SampleUpdaterClient> {
 
 export const SampleUpdaterClient = Symbol('SampleUpdaterClient');
 export interface SampleUpdaterClient {
-    onReadyToInstall(): void;
+    notifyReadyToInstall(): void;
 }

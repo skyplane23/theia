@@ -14,10 +14,22 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import { inject, injectable } from 'inversify';
-import { MessageService, MenuContribution, CommandContribution, MenuModelRegistry, CommandRegistry, Command, MenuPath } from '@theia/core/lib/common';
-import { FrontendApplicationContribution, CommonMenus } from '@theia/core/lib/browser';
-import { SampleUpdater, UpdateStatus } from '../../common/updater/sample-updater';
+import { remote, Menu, BrowserWindow } from 'electron';
+import { inject, injectable, postConstruct } from 'inversify';
+import { isOSX } from '@theia/core/lib/common/os';
+import { CommonMenus } from '@theia/core/lib/browser';
+import {
+    Emitter,
+    Command,
+    MenuPath,
+    MessageService,
+    MenuModelRegistry,
+    MenuContribution,
+    CommandRegistry,
+    CommandContribution
+} from '@theia/core/lib/common';
+import { SampleUpdater, UpdateStatus, SampleUpdaterClient } from '../../common/updater/sample-updater';
+import { ElectronMainMenuFactory } from '@theia/core/lib/electron-browser/menu/electron-main-menu-factory';
 
 export namespace SampleUpdaterCommands {
 
@@ -38,46 +50,95 @@ export namespace SampleUpdaterCommands {
     // Mock
     export const MOCK_UPDATE_AVAILABLE: Command = {
         id: 'electron-sample:mock-update-available',
-        label: 'Mock Update Available',
+        label: 'Mock - Available',
         category
-    }
+    };
 
     export const MOCK_UPDATE_NOT_AVAILABLE: Command = {
         id: 'electron-sample:mock-update-not-available',
-        label: 'Mock Update not Available',
+        label: 'Mock - Not Available',
         category
-    }
+    };
 
 }
 
 export namespace SampleUpdaterMenu {
-    export const SAMPLE_UPDATER_MENU_PATH: MenuPath = [...CommonMenus.FILE_SETTINGS_SUBMENU, '3_settings_submenu_update'];
+    export const MENU_PATH: MenuPath = [...CommonMenus.FILE_SETTINGS_SUBMENU, '3_settings_submenu_update'];
 }
 
 @injectable()
-export class SampleUpdaterFrontendContribution implements FrontendApplicationContribution, CommandContribution, MenuContribution {
+export class SampleUpdaterClientImpl implements SampleUpdaterClient {
+
+    protected readonly onReadyToInstallEmitter = new Emitter<void>();
+    readonly onReadyToInstall = this.onReadyToInstallEmitter.event;
+
+    notifyReadyToInstall(): void {
+        this.onReadyToInstallEmitter.fire();
+    }
+
+}
+
+@injectable()
+export class ElectronMenuUpdater {
+
+    @inject(ElectronMainMenuFactory)
+    protected readonly factory: ElectronMainMenuFactory;
+
+    public update(): void {
+        this.setMenu();
+    }
+
+    private setMenu(
+        menu: Menu = this.factory.createMenuBar(),
+        electronWindow: BrowserWindow = remote.getCurrentWindow()): void {
+        if (isOSX) {
+            remote.Menu.setApplicationMenu(menu);
+        } else {
+            // Unix/Windows: Set the per-window menus
+            electronWindow.setMenu(menu);
+        }
+    }
+
+}
+
+@injectable()
+export class SampleUpdaterFrontendContribution implements CommandContribution, MenuContribution {
 
     @inject(MessageService)
     protected readonly messageService: MessageService;
 
     @inject(SampleUpdater)
-    protected readonly sampleUpdater: SampleUpdater;
+    protected readonly updater: SampleUpdater;
 
-    protected readyToUpdate: false;
+    @inject(SampleUpdaterClientImpl)
+    protected readonly updaterClient: SampleUpdaterClientImpl;
 
-    onStart(): void {
+    @inject(ElectronMenuUpdater)
+    protected readonly menuUpdater: ElectronMenuUpdater;
 
+    protected readyToUpdate = false;
+
+    @postConstruct()
+    protected init(): void {
+        this.updaterClient.onReadyToInstall(async () => {
+            this.readyToUpdate = true;
+            this.menuUpdater.update();
+            const answer = await this.messageService.info('Found updates, do you want update now?', 'No', 'Yes');
+            if (answer === 'Yes') {
+                this.updater.onRestartToUpdateRequested();
+            }
+        });
     }
 
     registerCommands(registry: CommandRegistry): void {
         registry.registerCommand(SampleUpdaterCommands.CHECK_FOR_UPDATES, {
             execute: async () => {
-                const { status } = await this.sampleUpdater.checkForUpdates();
+                const { status } = await this.updater.checkForUpdates();
                 switch (status) {
                     case UpdateStatus.Available: {
                         const answer = await this.messageService.info('Found updates, do you want update now?', 'No', 'Yes');
                         if (answer === 'Yes') {
-                            this.sampleUpdater.onRestartToUpdateRequested();
+                            this.updater.onRestartToUpdateRequested();
                         }
                         break;
                     }
@@ -103,18 +164,18 @@ export class SampleUpdaterFrontendContribution implements FrontendApplicationCon
             isVisible: () => this.readyToUpdate
         });
         registry.registerCommand(SampleUpdaterCommands.MOCK_UPDATE_AVAILABLE, {
-            execute: () => this.sampleUpdater.setUpdateAvailable(true)
+            execute: () => this.updater.setUpdateAvailable(true)
         });
         registry.registerCommand(SampleUpdaterCommands.MOCK_UPDATE_NOT_AVAILABLE, {
-            execute: () => this.sampleUpdater.setUpdateAvailable(false)
+            execute: () => this.updater.setUpdateAvailable(false)
         });
     }
 
     registerMenus(registry: MenuModelRegistry): void {
-        registry.registerMenuAction(SampleUpdaterMenu.SAMPLE_UPDATER_MENU_PATH, {
+        registry.registerMenuAction(SampleUpdaterMenu.MENU_PATH, {
             commandId: SampleUpdaterCommands.CHECK_FOR_UPDATES.id
         });
-        registry.registerMenuAction(SampleUpdaterMenu.SAMPLE_UPDATER_MENU_PATH, {
+        registry.registerMenuAction(SampleUpdaterMenu.MENU_PATH, {
             commandId: SampleUpdaterCommands.RESTART_TO_UPDATE.id
         });
     }
