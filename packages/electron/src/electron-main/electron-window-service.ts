@@ -26,7 +26,7 @@ export class DefaultElectronMainWindowService implements ElectronMainWindowServi
     protected readonly app: ElectronApplication;
 
     openElectronWindow(url: string): void {
-        this.app.openWindowWithWorkspace(url);
+        this.app.openDefaultWindow();
     }
 
     openExternalWindow(url: string): void {
