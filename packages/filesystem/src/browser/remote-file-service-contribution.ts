@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2017 Ericsson and others.
+ * Copyright (C) 2020 TypeFox and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,19 +13,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
-import { Event, Disposable } from '@theia/core/lib/common';
-import URI from '@theia/core/lib/common/uri';
 
-export const UserStorageService = Symbol('UserStorageService');
+import { inject, injectable } from 'inversify';
+import { FileServiceContribution, FileService } from './file-service';
+import { RemoteFileSystemProvider } from '../common/remote-file-system-provider';
 
-export interface UserStorageService extends Disposable {
-    readContents(uri: URI): Promise<string>;
+@injectable()
+export class RemoteFileServiceContribution implements FileServiceContribution {
 
-    saveContents(uri: URI, content: string): Promise<void>;
+    @inject(RemoteFileSystemProvider)
+    protected readonly provider: RemoteFileSystemProvider;
 
-    onUserStorageChanged: Event<UserStorageChangeEvent>;
-}
+    registerFileSystemProviders(service: FileService): void {
+        service.registerProvider('file', this.provider);
+    }
 
-export interface UserStorageChangeEvent {
-    uris: URI[];
 }

@@ -40,7 +40,7 @@ describe('Find and Replace', function () {
     const navigatorContribution = container.get(FileNavigatorContribution);
     const shell = container.get(ApplicationShell);
 
-    const rootUri = new Uri.default(workspaceService.tryGetRoots()[0].uri);
+    const rootUri = workspaceService.tryGetRoots()[0].resource;
     const fileUri = rootUri.resolve('webpack.config.js');
 
     const toTearDown = new DisposableCollection();

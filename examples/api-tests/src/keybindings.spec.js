@@ -74,7 +74,7 @@ describe('Keybindings', function () {
             when: 'false'
         }));
 
-        const editor = await editorManager.open(new Uri.default(workspaceService.tryGetRoots()[0].uri).resolve('package.json'), {
+        const editor = await editorManager.open(workspaceService.tryGetRoots()[0].resource.resolve('package.json'), {
             mode: 'activate',
             selection: {
                 start: {

@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2017 Ericsson and others.
+ * Copyright (C) 2020 TypeFox and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,23 +13,24 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 
-import { injectable } from 'inversify';
-import { FileSystemWatcherServer, FileSystemWatcherClient, WatchOptions } from '../filesystem-watcher-protocol';
+export const enum Constants {
+	/**
+	 * Max unsigned integer that fits on 8 bits.
+	 */
+    MAX_UINT_8 = 255, // 2^8 - 1
+}
 
-@injectable()
-export class MockFilesystemWatcherServer implements FileSystemWatcherServer {
-
-    dispose(): void { }
-
-    watchFileChanges(uri: string, options?: WatchOptions): Promise<number> {
-        return Promise.resolve(0);
+export function toUint8(v: number): number {
+    if (v < 0) {
+        return 0;
     }
-
-    unwatchFileChanges(watcher: number): Promise<void> {
-        return Promise.resolve();
+    if (v > Constants.MAX_UINT_8) {
+        return Constants.MAX_UINT_8;
     }
-
-    setClient(client: FileSystemWatcherClient): void { }
-
+    return v | 0;
 }
