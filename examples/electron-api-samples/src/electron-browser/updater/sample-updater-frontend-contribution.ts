@@ -28,8 +28,9 @@ import {
     CommandRegistry,
     CommandContribution
 } from '@theia/core/lib/common';
-import { SampleUpdater, UpdateStatus, SampleUpdaterClient } from '../../common/updater/sample-updater';
 import { ElectronMainMenuFactory } from '@theia/core/lib/electron-browser/menu/electron-main-menu-factory';
+import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
+import { SampleUpdater, UpdateStatus, SampleUpdaterClient } from '../../common/updater/sample-updater';
 
 export namespace SampleUpdaterCommands {
 
@@ -78,6 +79,7 @@ export class SampleUpdaterClientImpl implements SampleUpdaterClient {
 
 }
 
+// Dynamic menus aren't yet supported by electron: https://github.com/eclipse-theia/theia/issues/446
 @injectable()
 export class ElectronMenuUpdater {
 
@@ -88,13 +90,10 @@ export class ElectronMenuUpdater {
         this.setMenu();
     }
 
-    private setMenu(
-        menu: Menu = this.factory.createMenuBar(),
-        electronWindow: BrowserWindow = remote.getCurrentWindow()): void {
+    private setMenu(menu: Menu = this.factory.createMenuBar(), electronWindow: BrowserWindow = remote.getCurrentWindow()): void {
         if (isOSX) {
             remote.Menu.setApplicationMenu(menu);
         } else {
-            // Unix/Windows: Set the per-window menus
             electronWindow.setMenu(menu);
         }
     }
@@ -107,14 +106,14 @@ export class SampleUpdaterFrontendContribution implements CommandContribution, M
     @inject(MessageService)
     protected readonly messageService: MessageService;
 
+    @inject(ElectronMenuUpdater)
+    protected readonly menuUpdater: ElectronMenuUpdater;
+
     @inject(SampleUpdater)
     protected readonly updater: SampleUpdater;
 
     @inject(SampleUpdaterClientImpl)
     protected readonly updaterClient: SampleUpdaterClientImpl;
-
-    @inject(ElectronMenuUpdater)
-    protected readonly menuUpdater: ElectronMenuUpdater;
 
     protected readyToUpdate = false;
 
@@ -123,10 +122,7 @@ export class SampleUpdaterFrontendContribution implements CommandContribution, M
         this.updaterClient.onReadyToInstall(async () => {
             this.readyToUpdate = true;
             this.menuUpdater.update();
-            const answer = await this.messageService.info('Found updates, do you want update now?', 'No', 'Yes');
-            if (answer === 'Yes') {
-                this.updater.onRestartToUpdateRequested();
-            }
+            this.handleUpdatesAvailable();
         });
     }
 
@@ -136,18 +132,16 @@ export class SampleUpdaterFrontendContribution implements CommandContribution, M
                 const { status } = await this.updater.checkForUpdates();
                 switch (status) {
                     case UpdateStatus.Available: {
-                        const answer = await this.messageService.info('Found updates, do you want update now?', 'No', 'Yes');
-                        if (answer === 'Yes') {
-                            this.updater.onRestartToUpdateRequested();
-                        }
+                        this.handleUpdatesAvailable();
                         break;
                     }
                     case UpdateStatus.NotAvailable: {
-                        this.messageService.info('You’re all good', { timeout: 3000 });
+                        const { applicationName } = FrontendApplicationConfigProvider.get();
+                        this.messageService.info(`[Not Available]: You’re all good. You’ve got the latest version of ${applicationName}.`, { timeout: 3000 });
                         break;
                     }
                     case UpdateStatus.InProgress: {
-                        this.messageService.warn('Work in progress...', { timeout: 3000 });
+                        this.messageService.warn('[Downloading]: Work in progress...', { timeout: 3000 });
                         break;
                     }
                     default: throw new Error(`Unexpected status: ${status}`);
@@ -157,9 +151,7 @@ export class SampleUpdaterFrontendContribution implements CommandContribution, M
             isVisible: () => !this.readyToUpdate
         });
         registry.registerCommand(SampleUpdaterCommands.RESTART_TO_UPDATE, {
-            execute: () => {
-
-            },
+            execute: () => this.updater.onRestartToUpdateRequested(),
             isEnabled: () => this.readyToUpdate,
             isVisible: () => this.readyToUpdate
         });
@@ -178,6 +170,13 @@ export class SampleUpdaterFrontendContribution implements CommandContribution, M
         registry.registerMenuAction(SampleUpdaterMenu.MENU_PATH, {
             commandId: SampleUpdaterCommands.RESTART_TO_UPDATE.id
         });
+    }
+
+    protected async handleUpdatesAvailable(): Promise<void> {
+        const answer = await this.messageService.info('[Available]: Found updates, do you want update now?', 'No', 'Yes');
+        if (answer === 'Yes') {
+            this.updater.onRestartToUpdateRequested();
+        }
     }
 
 }

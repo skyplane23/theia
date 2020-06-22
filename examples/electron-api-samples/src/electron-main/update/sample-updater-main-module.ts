@@ -15,9 +15,9 @@
  ********************************************************************************/
 
 import { ContainerModule } from 'inversify';
+import { JsonRpcConnectionHandler } from '@theia/core/lib/common';
 import { ElectronMainContribution } from '@theia/electron/lib/electron-main/electron-application';
 import { ElectronConnectionHandler } from '@theia/electron/lib/electron-common/messaging/electron-connection-handler';
-import { JsonRpcConnectionHandler } from '@theia/core/lib/common';
 import { SampleUpdaterPath, SampleUpdater, SampleUpdaterClient } from '../../common/updater/sample-updater';
 import { SampleUpdaterImpl } from './sample-updater-impl';
 
@@ -25,10 +25,6 @@ export default new ContainerModule(bind => {
     bind(SampleUpdaterImpl).toSelf().inSingletonScope();
     bind(SampleUpdater).toService(SampleUpdaterImpl);
     bind(ElectronMainContribution).toService(SampleUpdater);
-    bind(ElectronConnectionHandler).toDynamicValue(context =>
-        new JsonRpcConnectionHandler(SampleUpdaterPath, () => context.container.get(SampleUpdater))
-    ).inSingletonScope();
-
     bind(ElectronConnectionHandler).toDynamicValue(context =>
         new JsonRpcConnectionHandler<SampleUpdaterClient>(SampleUpdaterPath, client => {
             const server = context.container.get<SampleUpdater>(SampleUpdater);
